@@ -28,6 +28,7 @@ if(!$db){
 
 // Params
 $project = isset($_GET['projet']) ? $_GET['projet'] : false;
+$geo = isset($_GET['geo']) ? $_GET['geo'] : false;
 $year = isset($_GET['annee']) ? $_GET['annee'] : false;
 $region = isset($_GET['region']) ? $_GET['region'] : false;
 $province = isset($_GET['province']) ? $_GET['province'] : false;
@@ -69,7 +70,7 @@ if(sizeof($_GET) === 0){
     }
 
     if($region !== false){
-        if(is_numeric($region) && $province === false) $query = pg_query($db, "SELECT ST_AsGeoJSON(geom, 5), * FROM decoupage_n1 WHERE idedecn1 = $region");
+        if(is_numeric($region) && $province === false) $query = pg_query($db, "SELECT ST_AsGeoJSON(geom, 5) geometry, * FROM decoupage_n1 WHERE idedecn1 = $region");
         else if($province !== false && !is_numeric($province)) $query = pg_query($db, "SELECT ST_AsGeoJSON(geom, 5), * FROM decoupage_n2 WHERE idedecn1 = $region");
         else $query = pg_query($db, "SELECT ST_AsGeoJSON(geom, 5), * FROM decoupage_n1");
     }
@@ -84,6 +85,43 @@ if(sizeof($_GET) === 0){
         if(is_numeric($commune) && $province === false) $query = pg_query($db, "SELECT ST_AsGeoJSON(geom, 5), * FROM decoupage_n3 WHERE idedecn3 = $commune");
         else if($province !== false) $query = pg_query($db, "SELECT ST_AsGeoJSON(geom, 5), * FROM decoupage_n3 WHERE idedecn2 = $province");
     } 
+
+    if($geo !== false && sizeof($_POST) > 0){
+        $town = is_numeric($_POST['town']) ? (int)$_POST['town'] : "-1 or -1=-1";
+        $province = is_numeric($_POST['province']) ? (int)$_POST['province'] : "-1 or -1=-1";
+        $region = is_numeric($_POST['region']) ? (int)$_POST['region'] : "-1 or -1=-1";
+        $sector = is_numeric($_POST['sector']) ? (int)$_POST['sector'] : "-1 or -1=-1";
+        $moa = is_numeric($_POST['moa']) ? (int)$_POST['moa'] : "-1 or -1=-1";
+        $program = is_numeric($_POST['program']) ? (int)$_POST['program'] : "-1 or -1=-1";
+        $year = is_numeric($_POST['year']) ? (int)$_POST['year'] : "-1 or -1=-1";
+
+        $sql = "select ST_AsGeoJSON(prj.centproj, 5) center, prj.zoomproj, ST_AsGeoJSON(prj.lineproj, 5) line, ST_AsGeoJSON(prj.polyproj, 5) poly, ST_AsGeoJSON(prj.mulpoipr, 5) multipoints, ST_AsGeoJSON(prj.poinproj, 5) point, prj.idenproj ID, prj.descproj DESCR, n2.nomdecn2 PROVINCE,  prj.anneproj ANNEE,  
+        moar.nom_moa MOA, progr.nom_prog PROGRAMME, sect.nom_sect  SECTEUR
+        from 
+        projet prj, 
+        projet_programme prog,  -- table intermédiare entre projet et projet_programme-r
+        projet_programme_r progr,  --référentiel des programmes
+        projet_province_v prj_prv, -- une vue pour identifier la ou les provinces d'un projet
+        decoupage_n2 n2,    -- référentiel des provinces
+        projet_moa_r moar,    --référentiel des MOA
+        projet_secteur_r sect    -- référentiel des secteurs
+        where 
+        prj.idenproj=prog.idenproj
+        and prog.idenprog = progr.idenprog   
+        and prj.idenproj = prj_prv.idenproj
+        and prj_prv.idenprov = n2.idedecn2
+        and prj.iden_moa = moar.iden_moa
+        and prj.idensect = sect.idensect
+        and (prj.iden_moa = $moa)     --- pour ignorer la condition MO ==> prj.iden_mo=-1
+        and (prj.idensect = $sector)     --- pour ignorer la condition secteur ==> prj.idensect=-1
+        and (prog.idenprog = $program)    --- pour ignorer la condition prog ==> prj.idenprog=-1
+        and (prj_prv.idenprov = $province)  --- pour ignorer la condition province ==> prj.idenprov=-1
+        and (prj.idenproj in (select comm.idenproj from projet_decoupage_n3 comm 
+        where comm.idedecn3 = $town))   --- pour ignorer la condition commune ==> prj.idedecn3 = $town 
+        ";
+
+        $query = pg_query($db, $sql);
+    }
 }
 
 return response($query);
