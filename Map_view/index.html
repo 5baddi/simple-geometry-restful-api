@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>Map</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.4/dist/leaflet.css" integrity="sha512-puBpdR0798OZvTTbP4A8Ix/l+A4dHDD0DGqYW6RQ+9jxkRFclaxxQb/SJAWZfWAkuyeQUytO7+7N4QKrDh+drA==" crossorigin=""/>
+    </head>
+    <body>
+        <select name="region" onchange="getProvinces(this.value)">
+            <option>sélectionner une région</option>
+        </select>
+        
+        <select name="province" onchange="getTowns(this.value)" disabled>
+            <option>sélectionner une région</option>
+        </select>
+        
+        <select name="town" onchange="" disabled>
+            <option>sélectionner une province</option>
+        </select>
+        
+        <select name="year" onchange="">
+            <option>sélectionner une annee</option>
+        </select>
+        
+        <select name="program" onchange="">
+            <option>sélectionner un programme</option>
+        </select>
+
+        <select name="moa" onchange="">
+            <option>sélectionner un moa</option>
+        </select>
+        
+        <select name="sector" onchange="">
+            <option>sélectionner un secteur</option>
+        </select>
+
+        <button name="fetch">Afficher les projets</button>
+
+        <hr/>
+        <div id="map" style="height: 560px"></div>
+
+        <hr/>
+        <table border="1" width="100%">
+            <thead>
+                <tr>
+                    <th>Projet</th>
+                    <th>Province</th>
+                    <th>Annee</th>
+                    <th>MOA</th>
+                    <th>Programme</th>
+                    <th>Secteur</th>
+                    <th>&nbsp;</th>
+                </tr>
+            </thead>
+            <tbody id="result">
+
+            </tbody>
+        </table>
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+        <script src="https://unpkg.com/leaflet@1.3.4/dist/leaflet.js" integrity="sha512-nMMmRyTVoLYqjP9hrbed9S+FzjZHW5gY1TWCHA5ckwXZBadntCNs8kEqAWdrb9O7rxbCaA4lKTIWjDXZxflOcA==" crossorigin=""></script>
+        <script src="js/leaflet.browser.print.js"></script>
+        <script>
+            /**
+             * Ajax GET method adjusted to our API
+             */
+            function get(url, callback)
+            {
+                // load data from the url by GET method
+                $.ajax({
+                    url: url,
+                    method: "GET",
+                    success: function(data){
+                        // call the callback function and pass the result
+                        if(data.connected === true) callback(data.result);
+                    }
+                });
+            }
+
+            /*
+             * Get provinces data
+             */
+            function getProvinces(region)
+            {
+                // load provinces
+                get("http://localhost/pg_api/API/?province&region=" + region, function(provinces){
+                    if(provinces !== null && provinces !== "undefined"){
+                        // init province
+                        $province = $("select[name=province]");
+                        $province.html($('<option>').text("sélectionner une province"));
+                        // charge data
+                        $.each(provinces, function(i, value){
+                            $province.append($('<option>').text(value.nomdecn2).attr('value', value.idedecn2));
+                        });
+                        // enable
+                        $province.attr("disabled", false);
+                    }
+                });
+            }
+
+            /*
+             * Get towns data
+             */
+             function getTowns(province)
+            {
+                // load towns
+                get("http://localhost/pg_api/API/?commune&province=" + province, function(towns){
+                    if(towns !== null && towns !== "undefined"){
+                        // init province
+                        $town = $("select[name=town]");
+                        $town.html($('<option>').text("sélectionner une commune"));
+                        // charge data
+                        $.each(towns, function(i, value){
+                            $town.append($('<option>').text(value.nomdecn3).attr('value', value.idedecn3));
+                        });
+                        // enable
+                        $town.attr("disabled", false);
+                    }
+                });
+            }
+
+            function cleanMap(map)
+            {
+                if(map === null || map === "undefined") return;
+                map.eachLayer(function(layer){
+                    map.removeLayer(layer);
+                });
+
+                map.addLayer(googleLayer);
+            }
+
+            // Global vars
+            var googleLayer = L.tileLayer('http://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}');
+            var defaultStyle = {
+                radius: 8,
+                weight: 3,
+                color: "#3FCFE5",
+                opacity: 1,
+                fillColor: "#3FCFE5",
+                fillOpacity: 0.3
+            };
+
+            // Page loaded
+            $(document).ready(function(){
+                // vars
+                var printTitile = "Helioss";
+
+                // init the Map
+                var map = L.map("map", {
+                    layers: [googleLayer],
+                    center: [33.589886, -7.603869],
+                    zoom: 8
+                });
+
+                // Add Controls
+                L.control.browserPrint({documentTitle: printTitile}).addTo(map); // Browser print
+
+                // load regions
+                get("http://localhost/pg_api/API/?region", function(regions){
+                    // charge data
+                    $region = $("select[name=region]");
+                    $.each(regions, function(i, value){
+                        $region.append($('<option>').text(value.nomdecn1).attr('value', value.idedecn1));
+                    });
+                });
+
+                // load projects years
+                get("http://localhost/pg_api/API/?projet&annee", function(years){
+                    $years = $("select[name=year]");
+                    $.each(years, function(i, value){
+                        $years.append($('<option>').text(value.anneproj).attr('value', value.anneproj));
+                    });
+                });
+                
+                // load projects programs
+                get("http://localhost/pg_api/API/?programme", function(programs){
+                    $programs = $("select[name=program]");
+                    $.each(programs, function(i, value){
+                        $programs.append($('<option>').text(value.nom_prog).attr('value', value.idenprog));
+                    });
+                });
+                
+                // load projects moas
+                get("http://localhost/pg_api/API/?moa", function(moas){
+                    $moas = $("select[name=moa]");
+                    $.each(moas, function(i, value){
+                        $moas.append($('<option>').text(value.nom_moa).attr('value', value.iden_moa));
+                    });
+                });
+                
+                // load projects secteurs
+                get("http://localhost/pg_api/API/?secteur", function(sectors){
+                    $sectors = $("select[name=sector]");
+                    $.each(sectors, function(i, value){
+                        $sectors.append($('<option>').text(value.nom_sect).attr('value', value.idensect));
+                    });
+                });
+
+                // region changed
+                $("select[name=region]").on("change", function(){
+                    cleanMap(map); // remove exists layers
+                    // Zoom to the selected region
+                    get("http://localhost/pg_api/API/?region=" + this.value, function(data){
+                        var geometry = JSON.parse(data[0].geometry);
+                        if(geometry === null || geometry === "undefined") return;
+                        var geo = new L.geoJSON(geometry);
+                        geo.setStyle(defaultStyle);
+                        geo.addTo(map);
+                        map.fitBounds(geo.getBounds());
+                    }); 
+                });
+                
+                // province changed
+                $("select[name=province]").on("change", function(){
+                    cleanMap(map); // remove exists layers
+                    // Zoom map to a province
+                    get("http://localhost/pg_api/API/?province=" + this.value, function(data){
+                        provinceInfo = data[0];
+                        var geometry = JSON.parse(provinceInfo.st_asgeojson);
+                        if(geometry === null || geometry === "undefined") return;
+                        var poly = new L.geoJSON(geometry);
+                        poly.setStyle(defaultStyle);
+                        poly.addTo(map);
+                        map.fitBounds(poly.getBounds());
+                    });
+
+                    // Get towns
+                    getTowns(this.value);
+                });
+
+                // Town changed
+                $("select[name=town]").on("change", function(){
+                    cleanMap(map); // remove exists layers
+                    // Zoom map to a province
+                    get("http://localhost/pg_api/API/?commune=" + this.value, function(data){
+                        provinceInfo = data[0];
+                        var geometry = JSON.parse(provinceInfo.st_asgeojson);
+                        if(geometry === null || geometry === "undefined") return;
+                        var poly = new L.geoJSON(geometry);
+                        poly.setStyle(defaultStyle);
+                        poly.addTo(map);
+                        map.fitBounds(poly.getBounds());
+                    });
+                });
+                
+                /*
+                 * Generate Random HEX color
+                 */
+                function randomColor()
+                {
+                    return '#' + (Math.random() * 0xFFFFFF<<0).toString(16);
+                }
+
+                /*
+                 * Get Geometry style
+                 */
+                function getGeoStyle(type)
+                {
+                    style = defaultStyle;
+                    switch(type){
+                        case "MultiLineString":
+                            style.fillColor = "#D3D3D3";
+                            style.fillOpacity = 0.8;
+                        break;
+                        case "MultiPolygon":
+                            style.fillColor = randomColor();
+                        break;
+                    }
+
+                    return style;
+                }
+
+                /*
+                 * Parse the project geometry by type
+                 */
+                function getGeoJSON(value)
+                {
+                    var geom = {
+                        line: value.line || null,
+                        multiPoints: value.multiPoints || null,
+                        point: value.point || null,
+                        poly: value.poly || null,
+                        zoom: value.zoomproj || null,
+                        center: value.center || null,
+                    };
+                    
+                    geoJSON = {type: null, zoom: geom.zoom, center: geom.center, geometry: null, style: {}};
+                    $.each(geom, function(key, value){
+                        if(key === "zoom" || key === "center") return;
+
+                        value = JSON.parse(value);
+                        if(value !== null){
+                            geoJSON.geometry = value;
+                            geoJSON.style = getGeoStyle(value.type);
+                        }
+                    });
+
+                    return geoJSON;
+                }
+
+                // Fetch data
+                $("button[name=fetch]").on("click", function(){
+                    // All options
+                    $.ajax({
+                        url: "http://localhost/pg_api/API/?geo=project",
+                        method: "POST",
+                        data: $.param({
+                            region: $("select[name=region]")[0].value,
+                            province: $("select[name=province]")[0].value,
+                            town: $("select[name=town]")[0].value,
+                            sector: $("select[name=sector]")[0].value,
+                            moa: $("select[name=moa]")[0].value,
+                            program: $("select[name=program]")[0].value,
+                            year: $("select[name=year]")[0].value,
+                        }),
+                        success: function(data){
+                            var result = data.result;
+                            if(result !== null && result !== "undefined"){
+                                $("#result").html("");
+                                cleanMap(map);
+                                var layer = L.geoJSON().addTo(map);
+                                $.each(result, function(i, value){
+                                    var geo = getGeoJSON(value);
+                                    var tr = $("<tr>").attr("id", value.id);
+                                    tr.append($("<td>").text(value.descr));
+                                    tr.append($("<td>").text(value.province));
+                                    tr.append($("<td>").text(value.annee));
+                                    tr.append($("<td>").text(value.moa));
+                                    tr.append($("<td>").text(value.programme));
+                                    tr.append($("<td>").text(value.secteur));
+
+                                    var actionTd = $("<td>");
+                                    actionTd.append($("<input>").attr("type", "hidden").attr("value", JSON.stringify(geo)));
+                                    actionTd.append($("<button>").text("Localisé"));
+                                    tr.append(actionTd);
+
+                                    layer.addData(geo.geometry); 
+                                    layer.setStyle(geo.style);   
+
+                                    $("#result").append(tr);
+                                });
+
+                                map.fitBounds(layer.getBounds());
+                            }
+                        }
+                    })
+                });
+            });
+        </script>
+    </body>
+</html>
