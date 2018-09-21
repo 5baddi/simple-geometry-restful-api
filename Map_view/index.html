@@ -121,6 +121,9 @@
                 });
             }
 
+            /*
+             * Clean the Map layers
+             */
             function cleanMap(map)
             {
                 if(map === null || map === "undefined") return;
@@ -130,9 +133,74 @@
 
                 map.addLayer(googleLayer);
             }
+            
+            /*
+            * Generate Random HEX color
+            */
+            function randomColor()
+            {
+                return '#' + (Math.random() * 0xFFFFFF<<0).toString(16);
+            }
+
+            /*
+            * Get Geometry style
+            */
+            function getGeoStyle(type)
+            {
+                style = defaultStyle;
+                switch(type){
+                    case "MultiLineString":
+                        style.color = "red";
+                        style.weight = 3;
+                        style.opacity = 1;
+                    break;
+                    case "MultiPolygon":
+                        //style.fillColor = randomColor();
+                        style.fillOpacity = 0.5;
+                    break;
+                }
+
+                return style;
+            }
+
+            /*
+            * Parse the project geometry by type
+            */
+            function getGeoJSON(value)
+            {
+                var geom = {
+                    line: value.line || null,
+                    multiPoints: value.multiPoints || null,
+                    point: value.point || null,
+                    poly: value.poly || null,
+                    zoom: value.zoomproj || null,
+                    center: value.center || null,
+                };
+                
+                geoJSON = {type: null, zoom: geom.zoom, center: geom.center, geometry: null, style: {}};
+                $.each(geom, function(key, value){
+                    if(key === "zoom" || key === "center") return;
+
+                    value = JSON.parse(value);
+                    if(value !== null){
+                        geoJSON.geometry = value;
+                        geoJSON.style = getGeoStyle(value.type);
+                    }
+                });
+
+                return geoJSON;
+            }
+            
+            /*
+             * Locate geometry of one projects 
+             */
+            function locate(el)
+            {
+                console.log(el);
+            }
 
             // Global vars
-            var googleLayer = L.tileLayer('http://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}');
+            var googleLayer = L.tileLayer('http://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {attribution: '© I2S Ingenierie'});
             var defaultStyle = {
                 radius: 8,
                 weight: 3,
@@ -244,61 +312,6 @@
                         map.fitBounds(poly.getBounds());
                     });
                 });
-                
-                /*
-                 * Generate Random HEX color
-                 */
-                function randomColor()
-                {
-                    return '#' + (Math.random() * 0xFFFFFF<<0).toString(16);
-                }
-
-                /*
-                 * Get Geometry style
-                 */
-                function getGeoStyle(type)
-                {
-                    style = defaultStyle;
-                    switch(type){
-                        case "MultiLineString":
-                            style.fillColor = "#D3D3D3";
-                            style.fillOpacity = 0.8;
-                        break;
-                        case "MultiPolygon":
-                            style.fillColor = randomColor();
-                        break;
-                    }
-
-                    return style;
-                }
-
-                /*
-                 * Parse the project geometry by type
-                 */
-                function getGeoJSON(value)
-                {
-                    var geom = {
-                        line: value.line || null,
-                        multiPoints: value.multiPoints || null,
-                        point: value.point || null,
-                        poly: value.poly || null,
-                        zoom: value.zoomproj || null,
-                        center: value.center || null,
-                    };
-                    
-                    geoJSON = {type: null, zoom: geom.zoom, center: geom.center, geometry: null, style: {}};
-                    $.each(geom, function(key, value){
-                        if(key === "zoom" || key === "center") return;
-
-                        value = JSON.parse(value);
-                        if(value !== null){
-                            geoJSON.geometry = value;
-                            geoJSON.style = getGeoStyle(value.type);
-                        }
-                    });
-
-                    return geoJSON;
-                }
 
                 // Fetch data
                 $("button[name=fetch]").on("click", function(){
@@ -318,6 +331,7 @@
                         success: function(data){
                             var result = data.result;
                             if(result !== null && result !== "undefined"){
+                                if(result === false) return alert("No data!");
                                 $("#result").html("");
                                 cleanMap(map);
                                 var layer = L.geoJSON().addTo(map);
@@ -333,11 +347,20 @@
 
                                     var actionTd = $("<td>");
                                     actionTd.append($("<input>").attr("type", "hidden").attr("value", JSON.stringify(geo)));
-                                    actionTd.append($("<button>").text("Localisé"));
+                                    actionTd.append($("<button onclick=\"locate(this)\">").text("Localisé"));
                                     tr.append(actionTd);
 
                                     layer.addData(geo.geometry); 
                                     layer.setStyle(geo.style);   
+                                    if(geo.geometry.type === "MultiLineString"){
+                                        var l2 = L.geoJSON(geo.geometry, {
+                                            style: {
+                                            color: "yellow",
+                                            weight: 2,
+                                            opacity: 1
+                                        }
+                                        }).addTo(map);
+                                    }
 
                                     $("#result").append(tr);
                                 });
