@@ -194,9 +194,13 @@
             /*
              * Locate geometry of one projects 
              */
-            function locate(el)
+            function locate(id)
             {
-                console.log(el);
+                var geoInput = $("input[data-id=" + id + "]");
+                var geometry = geoInput[0].value;
+                if(geometry === null || geometry === "undefined") return alert("No geometry data!");
+
+                cleanMap(L); // Clean the map 
             }
 
             // Global vars
@@ -337,7 +341,7 @@
                                 var layer = L.geoJSON().addTo(map);
                                 $.each(result, function(i, value){
                                     var geo = getGeoJSON(value);
-                                    var tr = $("<tr>").attr("id", value.id);
+                                    var tr = $("<tr>");
                                     tr.append($("<td>").text(value.descr));
                                     tr.append($("<td>").text(value.province));
                                     tr.append($("<td>").text(value.annee));
@@ -346,8 +350,8 @@
                                     tr.append($("<td>").text(value.secteur));
 
                                     var actionTd = $("<td>");
-                                    actionTd.append($("<input>").attr("type", "hidden").attr("value", JSON.stringify(geo)));
-                                    actionTd.append($("<button onclick=\"locate(this)\">").text("Localisé"));
+                                    actionTd.append($("<input>").attr("type", "hidden").attr("data-id", value.id).attr("value", JSON.stringify(geo)));
+                                    actionTd.append($("<button onclick=\"locate(" + value.id + ")\">").text("Localisé"));
                                     tr.append(actionTd);
 
                                     layer.addData(geo.geometry); 
