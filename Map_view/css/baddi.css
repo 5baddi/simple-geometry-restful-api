@@ -1,0 +1,9 @@
+.leaflet-popup-content{
+    width: 200px !important;
+}
+.leaflet-popup-content img{
+    width: 100%;
+}
+.leaflet-popup-content h3{
+    text-align: center;
+}

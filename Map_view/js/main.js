@@ -290,6 +290,7 @@ $(document).ready(function(){
                         tr.append(actionTd);
 
                         layer.addData(geo.geometry); 
+                        layer.bindPopup("<img src=\"http://i2singenierie.com/accueil/wp-content/themes/I2sIngenierie/assets/img/logo.png\"/><h3>Titre de test</h3><hr/><p>info: bla bla<br/>info2: test</p>");
                         layer.setStyle(geo.style);   
                         if(geo.geometry.type === "MultiLineString"){
                             var l2 = L.geoJSON(geo.geometry, {
